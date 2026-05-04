@@ -177,8 +177,18 @@ import { Event, News } from '../../../core/models/index';
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             @for (e of events; track e.id) {
               <div class="card overflow-hidden group flex flex-col h-full border border-slate-100 shadow-sm hover:shadow-xl transition-all">
+                @if (e.imagePath) {
+                  <div class="h-48 overflow-hidden relative">
+                    <img [src]="getImageUrl(e.imagePath)" alt="{{ e.title }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                    @if (e.registrationEnabled) {
+                      <div class="absolute top-0 right-0 bg-primary-100 text-primary-700 text-xs font-bold px-3 py-1 rounded-bl-xl border-l border-b border-primary-200 z-10">
+                        Inscriptions Ouvertes
+                      </div>
+                    }
+                  </div>
+                }
                 <div class="p-6 flex flex-col h-full relative">
-                  @if (e.registrationEnabled) {
+                  @if (!e.imagePath && e.registrationEnabled) {
                     <div class="absolute top-0 right-0 bg-primary-100 text-primary-700 text-xs font-bold px-3 py-1 rounded-bl-xl border-l border-b border-primary-200">
                       Inscriptions Ouvertes
                     </div>
@@ -361,6 +371,6 @@ export class LandingComponent implements OnInit, OnDestroy {
   getImageUrl(path: string): string {
     if (!path) return '';
     if (path.startsWith('assets/')) return path;
-    return 'http://localhost:8085/api/files/' + path;
+    return 'http://localhost:8085/api/files/download/' + path;
   }
 }

@@ -44,6 +44,7 @@ export interface Program {
   endDate?: string;
   active: boolean;
   createdAt: string;
+  imagePath?: string;
 }
 
 export interface Round {

@@ -213,7 +213,7 @@ export class RoundSelectionComponent implements OnInit {
   }
 
   goBack() {
-    this.router.navigate(['../../'], { relativeTo: this.route });
+    this.router.navigate(['../../../'], { relativeTo: this.route });
   }
 
   hasOverrides(): boolean {

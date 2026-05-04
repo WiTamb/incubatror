@@ -253,6 +253,6 @@ export class AdminEventsComponent implements OnInit {
   getImageUrl(path: string | null): string {
     if (!path) return '';
     if (path.startsWith('assets/')) return path;
-    return 'http://localhost:8085/api/files/' + path;
+    return 'http://localhost:8085/api/files/download/' + path;
   }
 }

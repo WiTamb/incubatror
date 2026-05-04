@@ -112,7 +112,7 @@ export class AdminProgramsComponent implements OnInit {
     if (confirm('Voulez-vous vraiment supprimer ce programme ? Cela supprimera également tous les rounds et projets associés.')) {
       this.svc.deleteProgram(id).subscribe({
         next: () => this.load(),
-        error: (err) => alert('Impossible de supprimer ce programme car il est lié à d\\'autres éléments (ex: projets avec évaluations). ' + err.message)
+        error: (err) => alert("Impossible de supprimer ce programme car il est lié à d'autres éléments (ex: projets avec évaluations). " + err.message)
       });
     }
   }
@@ -120,6 +120,6 @@ export class AdminProgramsComponent implements OnInit {
   getImageUrl(path: string | null): string {
     if (!path) return '';
     if (path.startsWith('assets/')) return path;
-    return 'http://localhost:8085/api/files/' + path;
+    return 'http://localhost:8085/api/files/download/' + path;
   }
 }

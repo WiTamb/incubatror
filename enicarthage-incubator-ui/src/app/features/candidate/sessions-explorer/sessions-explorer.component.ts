@@ -333,10 +333,10 @@ export class SessionsExplorerComponent implements OnInit {
     const currentRound = s.rounds?.find(r => r.id === rid);
     const app = this.getMyApp(s.id);
     
-    // 1. Session must be strictly OPEN (as requested)
-    if (s.status !== 'OPEN') return true;
+    // 1. Session must not be CLOSED
+    if (s.status === 'CLOSED') return true;
     
-    // 2. Round must be strictly UPCOMING (as requested)
+    // 2. Round must be strictly UPCOMING (as requested) to allow edits
     if (!currentRound || currentRound.status !== 'UPCOMING') return true;
     
     // 3. Candidate must be accepted/active (already handled by getCurrentRoundId)

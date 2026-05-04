@@ -5,12 +5,12 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/enicarthage_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
-    password: '8svin1Jg@2003'
+    password: '12345@wt'
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     show-sql: true
     properties:
       hibernate:
@@ -22,8 +22,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: mail@gmail.com
-    password: pass
+    username: tamboura.wiem02@gmail.com
+    password: yrtx nyqb wfys rrzt
     properties:
       mail:
         smtp:

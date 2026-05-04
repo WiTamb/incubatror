@@ -48,8 +48,11 @@ public class FileController {
         }
     }
 
-    @GetMapping("/download/{filename:.+}")
+    @GetMapping("/download/{*filename}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
+        if (filename.startsWith("/")) {
+            filename = filename.substring(1);
+        }
         try {
             Path filePath = Paths.get(uploadDir).resolve(filename).normalize();
             Resource resource = new UrlResource(filePath.toUri());
