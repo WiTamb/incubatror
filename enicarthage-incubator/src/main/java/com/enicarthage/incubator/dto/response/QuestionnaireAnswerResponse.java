@@ -14,4 +14,5 @@ public class QuestionnaireAnswerResponse {
     private Long applicationId;
     private SessionQuestionResponse question;
     private String answer;
+    private String roundName;
 }

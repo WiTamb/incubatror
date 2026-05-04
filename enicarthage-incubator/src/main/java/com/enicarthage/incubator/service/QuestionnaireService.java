@@ -37,20 +37,41 @@ public class QuestionnaireService {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResourceNotFoundException("Round non trouvé"));
 
-        // Full replace: remove old questions and insert fresh ones
-        questionRepository.deleteByRoundId(roundId);
+        List<SessionQuestion> existingQuestions = questionRepository.findByRoundIdOrderByOrderIndexAsc(roundId);
 
         int idx = 0;
         for (SessionQuestionRequest req : requests) {
-            SessionQuestion q = SessionQuestion.builder()
-                    .round(round)
-                    .label(req.getLabel())
-                    .type(req.getType())
-                    .options(req.getOptions())
-                    .required(req.isRequired())
-                    .orderIndex(idx++)
-                    .build();
-            questionRepository.save(q);
+            SessionQuestion q = existingQuestions.stream()
+                    .filter(eq -> req.getId() != null && eq.getId().equals(req.getId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (q != null) {
+                // Update existing question
+                q.setLabel(req.getLabel());
+                q.setType(req.getType());
+                q.setOptions(req.getOptions());
+                q.setRequired(req.isRequired());
+                q.setOrderIndex(idx++);
+                questionRepository.save(q);
+                existingQuestions.remove(q);
+            } else {
+                // Create new question
+                SessionQuestion newQ = SessionQuestion.builder()
+                        .round(round)
+                        .label(req.getLabel())
+                        .type(req.getType())
+                        .options(req.getOptions())
+                        .required(req.isRequired())
+                        .orderIndex(idx++)
+                        .build();
+                questionRepository.save(newQ);
+            }
+        }
+
+        // Delete any questions that were removed by the admin
+        if (!existingQuestions.isEmpty()) {
+            questionRepository.deleteAll(existingQuestions);
         }
 
         return getQuestionnaire(roundId);
@@ -88,8 +109,10 @@ public class QuestionnaireService {
             throw new IllegalStateException("Vous n'êtes pas autorisé à soumettre pour ce round actuellement.");
         }
 
-        // Delete old answers for this application before saving new ones
-        List<QuestionnaireAnswer> existing = answerRepository.findByApplicationId(app.getId());
+        // Delete old answers for this round only (preserve answers from other rounds)
+        List<QuestionnaireAnswer> existing = answerRepository.findByApplicationId(app.getId()).stream()
+                .filter(a -> a.getQuestion().getRound().getId().equals(roundId))
+                .collect(Collectors.toList());
         answerRepository.deleteAll(existing);
 
         if (request.getAnswers() != null) {
@@ -132,6 +155,7 @@ public class QuestionnaireService {
                         .applicationId(a.getApplication().getId())
                         .question(toResponse(a.getQuestion()))
                         .answer(a.getAnswer())
+                        .roundName(a.getQuestion().getRound() != null ? a.getQuestion().getRound().getName() : "N/A")
                         .build())
                 .collect(Collectors.toList());
     }

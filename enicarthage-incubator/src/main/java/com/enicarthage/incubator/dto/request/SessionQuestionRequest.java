@@ -7,6 +7,8 @@ import lombok.Data;
 
 @Data
 public class SessionQuestionRequest {
+    private Long id;
+
     @NotBlank(message = "Le libellé est obligatoire")
     private String label;
 

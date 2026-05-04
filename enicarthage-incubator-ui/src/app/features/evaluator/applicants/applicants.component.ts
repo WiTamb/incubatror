@@ -237,8 +237,8 @@ import { ConfirmModalComponent } from '../../shared/confirm-modal/confirm-modal.
             <div class="space-y-6">
               @for (a of selectedAnswers; track a.id) {
                 <div class="group">
-                  @if (a._roundName) {
-                    <span class="text-[9px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded uppercase mb-1 inline-block">{{ a._roundName }}</span>
+                  @if (a.roundName) {
+                    <span class="text-[9px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded uppercase mb-1 inline-block">{{ a.roundName }}</span>
                   }
                   <p class="text-xs font-bold text-text-primary mb-2 flex items-start gap-2">
                     <span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-text-muted flex-shrink-0">{{ $index + 1 }}</span>
@@ -391,38 +391,22 @@ export class ApplicantsComponent implements OnInit {
     this.selectedAnswers = [];
     this.answersLoading = true;
 
-    // Determine which round to load answers from
+    // Use any valid roundId — the backend returns ALL answers for the application regardless of round
     const roundId = a.currentRoundId || (this.rounds.length > 0 ? this.rounds[0].id : null);
     if (!roundId) {
       this.answersLoading = false;
       return;
     }
 
-    // Load answers for ALL rounds so the evaluator sees complete questionnaire responses
-    const roundsToLoad = this.rounds.filter(r => r.orderIndex <= (a.currentRoundIndex || 1));
-    if (roundsToLoad.length === 0) roundsToLoad.push(this.rounds[0]);
-
-    let completed = 0;
-    const allAnswers: any[] = [];
-    roundsToLoad.forEach(round => {
-      this.questionnaireSvc.getAnswers(round.id, a.id).subscribe({
-        next: (r: any) => {
-          const answers = (r.data || []).map((ans: any) => ({ ...ans, _roundName: round.name }));
-          allAnswers.push(...answers);
-          completed++;
-          if (completed === roundsToLoad.length) {
-            this.selectedAnswers = allAnswers;
-            this.answersLoading = false;
-          }
-        },
-        error: () => {
-          completed++;
-          if (completed === roundsToLoad.length) {
-            this.selectedAnswers = allAnswers;
-            this.answersLoading = false;
-          }
-        }
-      });
+    this.questionnaireSvc.getAnswers(roundId, a.id).subscribe({
+      next: (r: any) => {
+        this.selectedAnswers = r.data || [];
+        this.answersLoading = false;
+      },
+      error: () => {
+        this.selectedAnswers = [];
+        this.answersLoading = false;
+      }
     });
   }
 
