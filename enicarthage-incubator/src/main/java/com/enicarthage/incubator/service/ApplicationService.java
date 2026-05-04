@@ -214,11 +214,26 @@ public class ApplicationService {
         Round round = roundRepository.findById(roundId)
                 .orElseThrow(() -> new ResourceNotFoundException("Round non trouvé"));
 
+        // For Round 1, also include applications with null currentRound (PENDING/just accepted)
+        boolean isRound1 = round.getOrderIndex() <= 1;
         List<Application> roundApps = applicationRepository.findBySessionId(round.getSession().getId()).stream()
-                .filter(a -> a.getCurrentRound() != null && a.getCurrentRound().getId().equals(roundId))
+                .filter(a -> {
+                    if (a.getCurrentRound() != null && a.getCurrentRound().getId().equals(roundId)) return true;
+                    // For Round 1, include apps with no round assigned (PENDING, ACCEPTED_ROUND_1)
+                    if (isRound1 && a.getCurrentRound() == null) return true;
+                    return false;
+                })
                 .collect(Collectors.toList());
 
         UserResponse jpDto = round.getJuryPresident() != null ? toUserResponse(round.getJuryPresident()) : null;
+
+        int totalEvaluators = round.getEvaluators().size();
+        boolean allEvaluated = totalEvaluators > 0 && !roundApps.isEmpty() && roundApps.stream().allMatch(app -> {
+            long evalCount = evaluationRepository.findByApplicationId(app.getId()).stream()
+                    .filter(e -> e.getRound() != null && e.getRound().getId().equals(roundId))
+                    .count();
+            return evalCount >= totalEvaluators;
+        });
 
         return RoundResultResponse.builder()
                 .roundId(round.getId())
@@ -226,6 +241,8 @@ public class ApplicationService {
                 .passingCandidatesCount(round.getPassingCandidatesCount() != null ? round.getPassingCandidatesCount() : 0)
                 .selectionValidated(round.isSelectionValidated())
                 .selectionFinalized(round.isSelectionFinalized())
+                .allEvaluated(allEvaluated)
+                .totalEvaluators(totalEvaluators)
                 .juryPresident(jpDto)
                 .rankedCandidates(buildRankedList(round, roundApps))
                 .build();
@@ -289,9 +306,28 @@ public class ApplicationService {
         if (!isAdmin && !isJP)
             throw new IllegalStateException("Seul l'administrateur ou le président du jury peut finaliser.");
 
+        // ── Block if evaluations are not complete ──
+        int totalEvaluators = round.getEvaluators().size();
+        boolean isRound1Final = round.getOrderIndex() <= 1;
         List<Application> roundApps = applicationRepository.findBySessionId(round.getSession().getId()).stream()
-                .filter(a -> a.getCurrentRound() != null && a.getCurrentRound().getId().equals(roundId))
+                .filter(a -> {
+                    if (a.getCurrentRound() != null && a.getCurrentRound().getId().equals(roundId)) return true;
+                    if (isRound1Final && a.getCurrentRound() == null) return true;
+                    return false;
+                })
                 .collect(Collectors.toList());
+
+        if (totalEvaluators > 0 && !roundApps.isEmpty()) {
+            boolean allEvaluated = roundApps.stream().allMatch(app -> {
+                long evalCount = evaluationRepository.findByApplicationId(app.getId()).stream()
+                        .filter(e -> e.getRound() != null && e.getRound().getId().equals(roundId))
+                        .count();
+                return evalCount >= totalEvaluators;
+            });
+            if (!allEvaluated) {
+                throw new IllegalStateException("Impossible de finaliser : toutes les évaluations n'ont pas encore été soumises par chaque évaluateur.");
+            }
+        }
 
         List<RoundResultResponse.CandidateRankEntry> ranked = buildRankedList(round, roundApps);
 
@@ -337,7 +373,7 @@ public class ApplicationService {
         }
 
         if (nextRound != null) {
-            nextRound.setStatus(RoundStatus.ACTIVE);
+            nextRound.setStatus(RoundStatus.UPCOMING);
             roundRepository.save(nextRound);
         }
 
@@ -388,14 +424,14 @@ public class ApplicationService {
         int passingCount = round.getPassingCandidatesCount() != null && round.getPassingCandidatesCount() > 0
                 ? round.getPassingCandidatesCount() : roundApps.size();
 
-        record AS(Application app, double score) {}
+        record AS(Application app, double score, int evalCount) {}
         List<AS> scores = roundApps.stream().map(app -> {
             List<Evaluation> evals = evaluationRepository.findByApplicationId(app.getId()).stream()
                     .filter(e -> e.getRound() != null && e.getRound().getId().equals(round.getId()))
                     .collect(Collectors.toList());
             double avg = 0.0;
             if (!evals.isEmpty()) avg = evals.stream().mapToDouble(Evaluation::getScore).average().orElse(0.0);
-            return new AS(app, avg);
+            return new AS(app, avg, evals.size());
         }).sorted((a, b) -> Double.compare(b.score(), a.score())).collect(Collectors.toList());
 
         List<RoundResultResponse.CandidateRankEntry> result = new ArrayList<>();
@@ -413,6 +449,7 @@ public class ApplicationService {
                     .candidateName(as.app().getCandidate().getFirstName() + " " + as.app().getCandidate().getLastName())
                     .candidateEmail(as.app().getCandidate().getEmail())
                     .averageScore(Math.round(as.score() * 10.0) / 10.0)
+                    .evaluationCount(as.evalCount())
                     .rank(i + 1)
                     .autoAccepted(autoAccepted)
                     .finalAccepted(finalAccepted)
@@ -463,6 +500,7 @@ public class ApplicationService {
                 .recommendation(e.getRecommendation()).evaluatedAt(e.getEvaluatedAt())
                 .evaluatorName(e.getEvaluator().getFirstName() + " " + e.getEvaluator().getLastName())
                 .evaluatorEmail(e.getEvaluator().getEmail())
+                .roundId(e.getRound() != null ? e.getRound().getId() : null)
                 .roundName(e.getRound() != null ? e.getRound().getName() : "N/A")
                 .build();
     }

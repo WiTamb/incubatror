@@ -14,5 +14,6 @@ public class EvaluationResponse {
     private LocalDateTime evaluatedAt;
     private String evaluatorName;
     private String evaluatorEmail;
+    private Long roundId;
     private String roundName;
 }

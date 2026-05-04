@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router';
 import { ApplicationService } from '../../../core/services/application.service';
 import { SessionService } from '../../../core/services/session.service';
 import { ProjectService } from '../../../core/services/project.service';
-import { Application, Session, Round } from '../../../core/models/session.model';
+import { Application, Session, Round, EvaluationHistory } from '../../../core/models/session.model';
 import { RoundStepperComponent } from '../../shared/round-stepper/round-stepper.component';
 import { StatusBadgeComponent } from '../../shared/status-badge/status-badge.component';
 import { FormsModule } from '@angular/forms';
@@ -52,7 +52,7 @@ import { FormsModule } from '@angular/forms';
                   {{ statusMessage(app) }}
                 </div>
                 <div class="flex items-center gap-2">
-                  <button *ngIf="app.status.startsWith('ACCEPTED') || app.status === 'COMPLETED'" [routerLink]="['/candidate/mentorship', app.id]" class="btn-primary btn-sm flex items-center gap-1">
+                  <button *ngIf="app.status === 'COMPLETED'" [routerLink]="['/candidate/mentorship', app.id]" class="btn-primary btn-sm flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     Espace Mentoring
                   </button>
@@ -81,24 +81,25 @@ import { FormsModule } from '@angular/forms';
         <!-- Submission logic removed from slide-over -->
 
 
-        <!-- Evaluation History -->
+        <!-- Evaluation History (only for finalized rounds) -->
         <div class="space-y-6">
           <h3 class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Historique des Évaluations</h3>
-          @for (ev of selected.evaluationHistory; track ev.id) {
-            <div class="card p-5 border-l-4 border-l-primary-500">
-              <div class="flex justify-between mb-2">
-                <span class="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded uppercase">{{ ev.roundName }}</span>
-                <span class="text-lg font-black text-primary-600">{{ ev.score }}/100</span>
+          @if (getFinalizedEvals(selected).length > 0) {
+            @for (ev of getFinalizedEvals(selected); track ev.id) {
+              <div class="card p-5 border-l-4 border-l-primary-500">
+                <div class="flex justify-between mb-2">
+                  <span class="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded uppercase">{{ ev.roundName }}</span>
+                  <span class="text-lg font-black text-primary-600">{{ ev.score }}/100</span>
+                </div>
+                <p class="text-sm text-text-secondary italic mb-2">"{{ ev.comment }}"</p>
+                @if (ev.recommendation) {
+                  <p class="text-xs text-text-muted">Recommandation : <span class="font-medium text-text-primary">{{ ev.recommendation }}</span></p>
+                }
               </div>
-              <p class="text-sm text-text-secondary italic mb-2">"{{ ev.comment }}"</p>
-              @if (ev.recommendation) {
-                <p class="text-xs text-text-muted">Recommandation : <span class="font-medium text-text-primary">{{ ev.recommendation }}</span></p>
-              }
-            </div>
-          }
-          @if (!selected.evaluationHistory?.length) {
+            }
+          } @else {
             <div class="text-center py-8 border-2 border-dashed border-slate-100 rounded-2xl">
-              <p class="text-sm text-text-muted">Aucune évaluation pour le moment.</p>
+              <p class="text-sm text-text-muted">Les évaluations seront visibles après la validation de la liste par le jury.</p>
             </div>
           }
         </div>
@@ -226,5 +227,15 @@ export class MyApplicationsComponent implements OnInit {
     if (app.status === 'REJECTED' || app.status.startsWith('ELIMINATED')) return 'bg-danger-50 text-danger-700';
     if (app.status === 'COMPLETED') return 'bg-success-50 text-success-700';
     return 'bg-primary-50 text-primary-700';
+  }
+
+  /** Only return evaluations for rounds where the selection has been finalized */
+  getFinalizedEvals(app: Application): EvaluationHistory[] {
+    if (!app.evaluationHistory?.length) return [];
+    const rounds = this.sessionRounds[app.sessionId] || [];
+    const finalizedRoundIds = new Set(
+      rounds.filter(r => r.selectionFinalized).map(r => r.id)
+    );
+    return app.evaluationHistory.filter(ev => finalizedRoundIds.has(ev.roundId));
   }
 }

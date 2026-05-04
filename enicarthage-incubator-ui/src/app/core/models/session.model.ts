@@ -44,6 +44,7 @@ export interface EvaluationHistory {
   evaluatedAt: string;
   evaluatorName: string;
   evaluatorEmail: string;
+  roundId: number;
   roundName: string;
 }
 
@@ -72,6 +73,7 @@ export interface CandidateRankEntry {
   candidateName: string;
   candidateEmail: string;
   averageScore: number;
+  evaluationCount: number;
   rank: number;
   autoAccepted: boolean;
   finalAccepted: boolean;
@@ -88,6 +90,8 @@ export interface RoundResult {
   selectionFinalized: boolean;
   juryPresident?: User;
   rankedCandidates: CandidateRankEntry[];
+  allEvaluated: boolean;
+  totalEvaluators: number;
 }
 
 export interface SelectionOverrideDecision {

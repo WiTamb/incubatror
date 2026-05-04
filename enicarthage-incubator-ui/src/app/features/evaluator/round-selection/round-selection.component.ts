@@ -40,7 +40,8 @@ import { RoundResult, SelectionOverrideRequest } from '../../../core/models/sess
             </div>
           </div>
           @if (isJuryPresident || isAdmin) {
-            <button (click)="finalizeSelection()" class="btn-primary" [disabled]="loading">
+            <button (click)="finalizeSelection()" class="btn-primary" [disabled]="loading || !result.allEvaluated"
+                    [title]="!result.allEvaluated ? 'Toutes les évaluations doivent être complètes avant validation' : 'Valider la sélection'">
               Valider la sélection finale
             </button>
           }
@@ -59,11 +60,30 @@ import { RoundResult, SelectionOverrideRequest } from '../../../core/models/sess
               Enregistrer les modifications
             </button>
           } @else if (isJuryPresident) {
-            <button (click)="finalizeSelection()" class="btn-primary" [disabled]="loading">
+            <button (click)="finalizeSelection()" class="btn-primary" [disabled]="loading || !result.allEvaluated"
+                    [title]="!result.allEvaluated ? 'Toutes les évaluations doivent être complètes avant validation' : 'Valider la sélection'">
               Valider la sélection finale
             </button>
           }
         </div>
+      }
+
+      <!-- Evaluation progress banner -->
+      @if (!result.selectionFinalized) {
+        <div class="mb-6 p-4 rounded-xl border flex items-center gap-3"
+             [class]="result.allEvaluated ? 'bg-success-50 border-success-200 text-success-700' : 'bg-amber-50 border-amber-200 text-amber-700'">
+          @if (result.allEvaluated) {
+            <svg class="w-5 h-5 text-success-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            <p class="text-sm font-medium">Toutes les évaluations sont complètes ({{ result.totalEvaluators }} évaluateur(s) par candidat). La validation est possible.</p>
+          } @else {
+            <svg class="w-5 h-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-sm font-medium">Évaluations en cours — {{ result.totalEvaluators }} évaluateur(s) attendu(s) par candidat. La validation est bloquée tant que toutes les évaluations ne sont pas complètes.</p>
+          }
+        </div>
+      }
+
+      @if (errorMsg) {
+        <div class="bg-danger-50 border border-danger-200 text-danger-700 p-4 rounded-xl mb-6 text-sm">{{ errorMsg }}</div>
       }
 
       <div class="card overflow-hidden">
@@ -73,6 +93,7 @@ import { RoundResult, SelectionOverrideRequest } from '../../../core/models/sess
               <th class="p-4">Rang</th>
               <th class="p-4">Candidat</th>
               <th class="p-4">Score Moyen</th>
+              <th class="p-4">Évaluations</th>
               <th class="p-4">Auto-Accepté</th>
               <th class="p-4">Sélection Finale</th>
               @if (isAdmin && !result.selectionFinalized) {
@@ -91,6 +112,15 @@ import { RoundResult, SelectionOverrideRequest } from '../../../core/models/sess
                 <td class="p-4">
                   <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-sm font-bold bg-primary-50 text-primary-700">
                     {{ cand.averageScore | number:'1.1-1' }}
+                  </span>
+                </td>
+                <td class="p-4">
+                  <span class="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                        [class]="cand.evaluationCount >= result.totalEvaluators ? 'bg-success-50 text-success-700' : 'bg-amber-50 text-amber-700'">
+                    {{ cand.evaluationCount }}/{{ result.totalEvaluators }}
+                    @if (cand.evaluationCount >= result.totalEvaluators) {
+                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    }
                   </span>
                 </td>
                 <td class="p-4">
@@ -167,6 +197,7 @@ export class RoundSelectionComponent implements OnInit {
   result: RoundResult | null = null;
   roundId!: number;
   loading = false;
+  errorMsg = '';
   
   isAdmin = false;
   isJuryPresident = false;
@@ -267,10 +298,17 @@ export class RoundSelectionComponent implements OnInit {
     }
     
     this.loading = true;
-    this.appSvc.finalizeSelection(this.roundId).subscribe(res => {
-      this.result = res.data || null;
-      this.loading = false;
-      alert('Sélection finalisée avec succès.');
+    this.errorMsg = '';
+    this.appSvc.finalizeSelection(this.roundId).subscribe({
+      next: (res) => {
+        this.result = res.data || null;
+        this.loading = false;
+        alert('Sélection finalisée avec succès. Les emails ont été envoyés aux candidats.');
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMsg = err.error?.message || 'Erreur lors de la finalisation. Vérifiez que toutes les évaluations sont complètes.';
+      }
     });
   }
 }

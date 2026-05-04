@@ -352,7 +352,9 @@ export class SessionsExplorerComponent implements OnInit {
   }
 
   canSubmitProject(app: Application): boolean {
-    return app.status.startsWith('ACCEPTED');
+    // Only allow project submission for Round 1 — for rounds 2+, candidates only answer the questionnaire
+    if (!app.status.startsWith('ACCEPTED')) return false;
+    return !app.currentRoundIndex || app.currentRoundIndex <= 1;
   }
 
   openSubmission(s: Session, app: Application) {

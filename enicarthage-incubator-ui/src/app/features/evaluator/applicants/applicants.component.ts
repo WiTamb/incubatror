@@ -57,6 +57,7 @@ import { ConfirmModalComponent } from '../../shared/confirm-modal/confirm-modal.
         <thead><tr class="table-header">
           <th class="px-6 py-4 text-left">Candidat</th>
           <th class="px-6 py-4 text-left">Progression</th>
+          <th class="px-6 py-4 text-center">Score Moyen</th>
           <th class="px-6 py-4 text-center">Statut Actuel</th>
           <th class="px-6 py-4 text-right">Actions de Workflow</th>
         </tr></thead>
@@ -82,26 +83,38 @@ import { ConfirmModalComponent } from '../../shared/confirm-modal/confirm-modal.
                   </div>
                 </div>
               </td>
+              <td class="px-6 py-4 text-center">
+                @if (a.averageScore != null) {
+                  <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-sm font-bold"
+                        [class]="a.averageScore >= 70 ? 'bg-success-50 text-success-700' : a.averageScore >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-danger-50 text-danger-700'">
+                    {{ a.averageScore | number:'1.1-1' }}
+                  </span>
+                } @else {
+                  <span class="text-xs text-text-muted italic">—</span>
+                }
+              </td>
               <td class="px-6 py-4 text-center"><app-status-badge [status]="a.status" /></td>
               <td class="px-6 py-4" (click)="$event.stopPropagation()">
                 <div class="flex items-center justify-end gap-2">
                   <button (click)="selectApp(a); $event.stopPropagation()" class="btn-ghost btn-sm px-2 py-1 text-primary-600 hover:bg-primary-50 rounded-lg" title="Voir l'historique des évaluations">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                   </button>
-                  @if (getMyEvaluation(a)) {
-                    <button (click)="openEval(a); $event.stopPropagation()" 
-                            [disabled]="isOut(a) || !isRoundActive(a.currentRoundId)" 
-                            class="btn-primary btn-xs text-[10px] px-3 py-1 bg-blue-500 hover:bg-blue-600 border-none disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
-                            [title]="!isRoundActive(a.currentRoundId) ? 'Evaluation non autorisée (Round non actif)' : 'Modifier votre évaluation'">
-                      Modifier
-                    </button>
-                  } @else {
-                    <button (click)="openEval(a); $event.stopPropagation()" 
-                            [disabled]="isOut(a) || !isRoundActive(a.currentRoundId)" 
-                            class="btn-primary btn-xs text-[10px] px-3 py-1 bg-amber-500 hover:bg-amber-600 border-none disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
-                            [title]="!isRoundActive(a.currentRoundId) ? 'Evaluation non autorisée (Round non actif)' : 'Évaluer ce candidat'">
-                      Évaluer
-                    </button>
+                  @if (!isInAdminSpace) {
+                    @if (getMyEvaluation(a)) {
+                      <button (click)="openEval(a); $event.stopPropagation()" 
+                              [disabled]="isOut(a) || !isRoundActive(a.currentRoundId)" 
+                              class="btn-primary btn-xs text-[10px] px-3 py-1 bg-blue-500 hover:bg-blue-600 border-none disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
+                              [title]="!isRoundActive(a.currentRoundId) ? 'Evaluation non autorisée (Round non actif)' : 'Modifier votre évaluation'">
+                        Modifier
+                      </button>
+                    } @else {
+                      <button (click)="openEval(a); $event.stopPropagation()" 
+                              [disabled]="isOut(a) || !isRoundActive(a.currentRoundId)" 
+                              class="btn-primary btn-xs text-[10px] px-3 py-1 bg-amber-500 hover:bg-amber-600 border-none disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
+                              [title]="!isRoundActive(a.currentRoundId) ? 'Evaluation non autorisée (Round non actif)' : 'Évaluer ce candidat'">
+                        Évaluer
+                      </button>
+                    }
                   }
                   @if (isAdmin) {
                     @if (a.status === 'PENDING') {
@@ -224,6 +237,9 @@ import { ConfirmModalComponent } from '../../shared/confirm-modal/confirm-modal.
             <div class="space-y-6">
               @for (a of selectedAnswers; track a.id) {
                 <div class="group">
+                  @if (a._roundName) {
+                    <span class="text-[9px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded uppercase mb-1 inline-block">{{ a._roundName }}</span>
+                  }
                   <p class="text-xs font-bold text-text-primary mb-2 flex items-start gap-2">
                     <span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] text-text-muted flex-shrink-0">{{ $index + 1 }}</span>
                     {{ a.question?.label || 'Question' }}
@@ -288,6 +304,7 @@ export class ApplicantsComponent implements OnInit {
   pendingAction: { action: string; app: Application } | null = null;
   basePath = '/evaluator';
   isAdmin = false;
+  isInAdminSpace = false;
 
   constructor(
     private route: ActivatedRoute, 
@@ -309,6 +326,7 @@ export class ApplicantsComponent implements OnInit {
   ngOnInit() {
     this.isAdmin = this.auth.userRole() === Role.ADMIN;
     this.basePath = this.router.url.startsWith('/admin') ? '/admin' : '/evaluator';
+    this.isInAdminSpace = this.router.url.startsWith('/admin');
     this.sessionId = +this.route.snapshot.paramMap.get('id')!;
     const rid = this.route.snapshot.paramMap.get('roundId');
     if (rid) this.filterRound = rid;
@@ -347,7 +365,7 @@ export class ApplicantsComponent implements OnInit {
         }
       }
       return true;
-    });
+    }).sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0));
   }
 
   isOut(a: Application) { return a.status === 'REJECTED' || a.status.startsWith('ELIMINATED'); }
@@ -372,15 +390,39 @@ export class ApplicantsComponent implements OnInit {
     this.selected = a; 
     this.selectedAnswers = [];
     this.answersLoading = true;
-    this.questionnaireSvc.getAnswers(this.sessionId, a.id).subscribe({
-      next: (r: any) => {
-        console.log('DEBUG - Réponses reçues:', r.data);
-        this.selectedAnswers = r.data || [];
-        this.answersLoading = false;
-      },
-      error: () => {
-        this.answersLoading = false;
-      }
+
+    // Determine which round to load answers from
+    const roundId = a.currentRoundId || (this.rounds.length > 0 ? this.rounds[0].id : null);
+    if (!roundId) {
+      this.answersLoading = false;
+      return;
+    }
+
+    // Load answers for ALL rounds so the evaluator sees complete questionnaire responses
+    const roundsToLoad = this.rounds.filter(r => r.orderIndex <= (a.currentRoundIndex || 1));
+    if (roundsToLoad.length === 0) roundsToLoad.push(this.rounds[0]);
+
+    let completed = 0;
+    const allAnswers: any[] = [];
+    roundsToLoad.forEach(round => {
+      this.questionnaireSvc.getAnswers(round.id, a.id).subscribe({
+        next: (r: any) => {
+          const answers = (r.data || []).map((ans: any) => ({ ...ans, _roundName: round.name }));
+          allAnswers.push(...answers);
+          completed++;
+          if (completed === roundsToLoad.length) {
+            this.selectedAnswers = allAnswers;
+            this.answersLoading = false;
+          }
+        },
+        error: () => {
+          completed++;
+          if (completed === roundsToLoad.length) {
+            this.selectedAnswers = allAnswers;
+            this.answersLoading = false;
+          }
+        }
+      });
     });
   }
 
@@ -407,8 +449,8 @@ export class ApplicantsComponent implements OnInit {
     const email = this.auth.currentUser()?.email;
     if (!email || !a.evaluationHistory) return null;
     
-    // Find if the current evaluator has already scored this candidate
-    return a.evaluationHistory.find(e => e.evaluatorEmail === email);
+    // Find if the current evaluator has already scored this candidate FOR THE CURRENT ROUND
+    return a.evaluationHistory.find(e => e.evaluatorEmail === email && e.roundId === a.currentRoundId);
   }
 
   openEval(a: Application) {
