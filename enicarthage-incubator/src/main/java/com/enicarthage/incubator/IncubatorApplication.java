@@ -14,8 +14,4 @@ public class IncubatorApplication {
         SpringApplication.run(IncubatorApplication.class, args);
     }
 
-    @Bean
-    CommandLineRunner initLandingSections(LandingSectionService landingSectionService) {
-        return args -> landingSectionService.initDefaultSections();
-    }
 }
