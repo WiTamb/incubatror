@@ -49,3 +49,10 @@ logging:
   level:
     com.enicarthage: DEBUG
     org.springframework.security: DEBUG
+  file:
+    name: logs/incubator.log
+  logback:
+    rollingpolicy:
+      file-name-pattern: logs/incubator-%d{yyyy-MM-dd}.%i.log
+      max-file-size: 10MB
+      max-history: 30
